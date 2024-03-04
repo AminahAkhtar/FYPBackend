@@ -3,6 +3,71 @@ info:
   title: Battery Swapping And Health Monitoring API
   version: 1.0.0
 paths:
+  /api/biker/nearest-franchisers/{phoneNumber}:
+    get:
+      summary: Get nearest franchisers based on biker's phone number
+      tags: [Biker]
+      parameters:
+        - in: path
+          name: phoneNumber
+          required: true
+          description: Biker's phone number
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nearestFranchisers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                          description: Name of the franchiser
+                        coordinates:
+                          type: array
+                          items:
+                            type: number
+                          description: Latitude and longitude coordinates of the franchiser
+                        distance:
+                          type: number
+                          description: Distance from the biker to the franchiser in kilometers
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Description of the error
+        '404':
+          description: Biker not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Description of the error
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Description of the error
   /api/biker/requestSwap:
     post:
       summary: Create a new swap request
@@ -30,3 +95,627 @@ paths:
                 properties:
                   message:
                     type: string
+                    description: Confirmation message
+                  swapRequestId:
+                    type: string
+                    description: ID of the newly created swap request
+        '404':
+          description: Biker or franchiser not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Description of the error
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Description of the error
+  /api/biker/checkSwapRequestStatus/{swapRequestId}:
+    get:
+      summary: Check swap request status
+      tags: [Biker]
+      parameters:
+        - in: path
+          name: swapRequestId
+          required: true
+          schema:
+            type: string
+          description: ID of the swap request
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Status message
+        '404':
+          description: Swap request not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Description of the error
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Description of the error
+  /api/biker/register:
+    post:
+      summary: Register a biker
+      tags: [Biker]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Name of the biker
+                email:
+                  type: string
+                  format: email
+                  description: Email of the biker
+                phoneNumber:
+                  type: string
+                  description: Phone number of the biker
+      responses:
+        '200':
+          description: Verification email sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Success message
+        '404':
+          description: Biker not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Description of the error
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Description of the error
+  /api/biker/verify-email/{token}:
+    get:
+      summary: Verify biker's email
+      tags: [Biker]
+      parameters:
+        - in: path
+          name: token
+          required: true
+          description: JWT token sent to the biker's email
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Email verified successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Success message
+        '404':
+          description: Biker not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Description of the error
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Description of the error
+  /api/biker/check-email-verification:
+    get:
+      summary: Check email verification status
+      tags: [Biker]
+      parameters:
+        - in: query
+          name: email
+          required: true
+          description: Email of the biker to check
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Email verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Success message
+        '400':
+          description: Email is required or not verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Description of the error
+        '404':
+          description: Biker not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Description of the error
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Description of the error
+  /api/franchiser/registerBattery:
+    post:
+      summary: Register a new battery
+      tags: [Swap Station]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                franchiserPhoneNumber:
+                  type: string
+                  description: Phone number of the franchiser
+                battery_number:
+                  type: string
+                  description: Serial number of the battery
+                price:
+                  type: number
+                  description: Price of the battery
+      responses:
+        '200':
+          description: Battery registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Success message
+        '404':
+          description: Franchiser not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Error message
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Error message
+  /api/franchiser/batteries/{franchiserPhoneNumber}:
+    get:
+      summary: Get batteries by franchiser phone number
+      tags: [Swap Station]
+      parameters:
+        - in: path
+          name: franchiserPhoneNumber
+          required: true
+          description: Phone number of the franchiser
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Batteries retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  batteries:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        _id:
+                          type: string
+                          description: Battery ID
+                        battery_number:
+                          type: string
+                          description: Serial number of the battery
+                        price:
+                          type: number
+                          description: Price of the battery
+                        franchiserId:
+                          type: string
+                          description: ID of the franchiser
+                        createdAt:
+                          type: string
+                          format: date-time
+                          description: Date and time when the battery was created
+                        updatedAt:
+                          type: string
+                          format: date-time
+                          description: Date and time when the battery was last updated
+        '404':
+          description: Franchiser not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+  /api/franchiser/register:
+    post:
+      summary: Register franchiser and generate verification token
+      tags: [Swap Station]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                phoneNumber:
+                  type: string
+                  description: Phone number of the biker
+      responses:
+        '200':
+          description: Verification email sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Confirmation message
+        '404':
+          description: Franchiser not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+  /api/franchiser/verify-email/{token}:
+    get:
+      summary: Verify swap station's email
+      tags: [Swap Station]
+      parameters:
+        - in: path
+          name: token
+          required: true
+          description: JWT token sent to the swap station's email
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Email verified successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Success message
+        '404':
+          description: Franchiser not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Description of the error
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Description of the error
+  /api/franchiser/check-email-verification:
+    get:
+      summary: Check email verification status
+      tags: [Swap Station]
+      parameters:
+        - in: query
+          name: email
+          required: true
+          description: Email of the franchiser to check
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Email verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Success message
+        '400':
+          description: Email is required or not verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Description of the error
+        '404':
+          description: Franchiser not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Description of the error
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Description of the error
+  /api/franchiser/reject-swap-request/{swapRequestId}:
+    put:
+      summary: Reject a swap request
+      tags: [Swap Station]
+      parameters:
+        - in: path
+          name: swapRequestId
+          required: true
+          schema:
+            type: string
+          description: ID of the swap request to reject
+      responses:
+        '200':
+          description: Swap request status updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Confirmation message
+        '404':
+          description: Swap request not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+  /api/franchiser/accept-swap-request/{swapRequestId}:
+    put:
+      summary: Accept a swap request
+      tags: [Swap Station]
+      parameters:
+        - in: path
+          name: swapRequestId
+          required: true
+          schema:
+            type: string
+          description: ID of the swap request to accept
+      responses:
+        '200':
+          description: Swap request status updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Confirmation message
+        '404':
+          description: Swap request not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+  /api/franchiser/view-all-request/{franchiserPhoneNumber}:
+    get:
+      summary: View all swap requests for a franchiser
+      tags: [Swap Station]
+      parameters:
+        - in: path
+          name: franchiserPhoneNumber
+          required: true
+          schema:
+            type: string
+          description: Phone number of the franchiser
+      responses:
+        '200':
+          description: List of swap requests
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  swapRequests:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        _id:
+                          type: string
+                          description: ID of the swap request
+                        biker:
+                          type: string
+                          description: ID of the biker
+                        franchiser:
+                          type: string
+                          description: ID of the franchiser
+                        battery:
+                          type: string
+                          description: ID of the battery
+                        batteryStatus:
+                          type: string
+                          description: Status of the battery
+                        request:
+                          type: string
+                          description: Status of the swap request
+                        amount:
+                          type: string
+                          description: Amount of the swap request
+                        datetime:
+                          type: string
+                          format: date-time
+                          description: Datetime of the swap request
+        '404':
+          description: Franchiser not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message

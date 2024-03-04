@@ -356,12 +356,18 @@ router.get('/checkSwapRequestStatus/:swapRequestId', async (req, res) => {
           return res.status(404).json({ message: 'Swap request not found' });
       }
 
-      // Check the status and respond accordingly
-      if (swapRequest.request === 'accepted') {
-          res.status(200).json({ message: 'Request accepted, proceed to payment' });
-      } else if (swapRequest.request === 'rejected' || swapRequest.request === '') {
-          res.status(200).json({ message: 'Send request to another station' });
-      }
+     // Check if the request value is empty, then update it to "rejected"
+     if (swapRequest.request === '') {
+      swapRequest.request = 'rejected';
+      await swapRequest.save();
+  }
+
+    // Respond accordingly based on the updated status
+    if (swapRequest.request === 'accepted') {
+        res.status(200).json({ message: 'Request accepted, proceed to payment' });
+    } else if (swapRequest.request === 'rejected') {
+        res.status(200).json({ message: 'Send request to another station' });
+    }
 
   } catch (error) {
       console.error('Error checking swap request status:', error);

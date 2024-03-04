@@ -250,7 +250,7 @@ router.post('/registerBattery', async (req, res) => {
       await battery.save();
 
       // Update the total and available batteries count of the franchiser
-      await Franchiser.findByIdAndUpdate(franchiser._id, { $inc: { totalBatteries: 1, availableBatteries: 1 } });
+      await Franchiser.findByIdAndUpdate(franchiser._id, { $inc: { availableBatteries: 1 } });
 
       res.status(200).json({ message: 'Battery registered successfully' });
   } catch (error) {
@@ -422,9 +422,21 @@ router.put('/accept-swap-request/:swapRequestId', async (req, res) => {
 
       // Update the swap request status to "accepted"
       swapRequest.request = 'accepted';
+      swapRequest.batteryStatus = 'reserved';
       await swapRequest.save();
 
-      res.status(200).json({ message: 'Swap request status updated to accepted' });
+      // Get the franchiser ID from the swap request
+      const franchiserId = swapRequest.franchiser;
+
+      // Deduct one from the availableBatteries field of the associated franchiser
+      const franchiser = await Franchiser.findById(franchiserId);
+      if (!franchiser) {
+          return res.status(404).json({ error: 'Franchiser not found' });
+      }
+      franchiser.availableBatteries -= 1;
+      await franchiser.save();
+
+      res.status(200).json({ message: 'Swap request status updated to accepted', batteryStatus: 'reserved' });
   } catch (error) {
       console.error('Error:', error);
       res.status(500).json({ error: 'Internal server error' });

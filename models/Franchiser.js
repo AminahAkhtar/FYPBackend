@@ -14,7 +14,8 @@ const FranchiserSchema = new Schema({
         unique:true
     },
     totalBatteries:{
-        type:Number
+        type:Number,
+        default: 9
     },
     availableBatteries:{
         type:Number
