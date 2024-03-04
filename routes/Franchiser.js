@@ -1,10 +1,16 @@
 const express = require('express');
 const Franchiser = require('../models/Franchiser');
+const Battery = require('../models/Battery');
+const SwapRequest = require('../models/SwapRequest');
 const router = express.Router();
 const bcrypt = require('bcryptjs')
 const {body, validationResult} = require('express-validator')
+const jwt = require('jsonwebtoken'); 
+const nodemailer = require('nodemailer');
+const mongoose = require('mongoose');
+const ObjectId = mongoose.Types.ObjectId;
 
-var jwt = require('jsonwebtoken')
+
 // var fetchuser = require('../middleware/fetchuser')
 const JWT_SECRET = 'bshm'
 
@@ -223,5 +229,227 @@ router.post('/generate-otp', async (req, res) => {
   return res.json({ otp });
 });
 
+//Register A Battery
+// Endpoint to register a new battery
+router.post('/registerBattery', async (req, res) => {
+  const { franchiserPhoneNumber, battery_number, price } = req.body;
+
+  try {
+      // Fetch the franchiser ID based on the phone number
+      const franchiser = await Franchiser.findOne({ phoneNumber: franchiserPhoneNumber });
+      if (!franchiser) {
+          return res.status(404).json({ message: 'Franchiser not found' });
+      }
+
+      // Create a new battery entry
+      const battery = new Battery({
+          battery_number,
+          franchiser: franchiser._id,
+          price
+      });
+      await battery.save();
+
+      // Update the total and available batteries count of the franchiser
+      await Franchiser.findByIdAndUpdate(franchiser._id, { $inc: { totalBatteries: 1, availableBatteries: 1 } });
+
+      res.status(200).json({ message: 'Battery registered successfully' });
+  } catch (error) {
+      console.error('Error registering battery:', error);
+      res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+//Display all batteries of a franchiser
+// API endpoint to display all batteries based on franchiser id
+router.get('/batteries/:franchiserPhoneNumber', async (req, res) => {
+  try {
+      const { franchiserPhoneNumber } = req.params;
+
+      // Find franchiser by phone number
+      const franchiser = await Franchiser.findOne({ phoneNumber: franchiserPhoneNumber });
+
+      if (!franchiser) {
+          return res.status(404).json({ error: 'Franchiser not found' });
+      }
+
+      // Find batteries associated with the franchiser
+      const batteries = await Battery.find({ franchiserId: franchiser._id });
+
+      res.status(200).json({ batteries });
+  } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Endpoint to receive name, email, and phone number and generate a token
+router.post('/register', async (req, res) => {
+  try {
+      const { name, email, phoneNumber } = req.body;
+
+      // Find franchiser by phone number
+      const franchiser = await Franchiser.findOne({ phoneNumber });
+
+      if (!franchiser) {
+          return res.status(404).json({ error: 'Franchiser not found' });
+      }
+
+      // Generate JWT token
+      const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: '1h' });
+
+      // Update franchiser with name, email, token, and is-email-verified flag
+      await franchiser.updateOne({ name, email, token, is_email_verified: 0 });
+
+      // Send email with token
+      await sendVerificationEmail(email, token);
+
+      res.status(200).json({ message: 'Verification email sent' });
+  } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Endpoint to verify email by token
+router.get('/verify-email/:token', async (req, res) => {
+  try {
+      const token = req.params.token;
+
+      // Verify JWT token
+      const decoded = jwt.verify(token, JWT_SECRET);
+
+      // Find franchiser by decoded email
+      const franchiser = await Franchiser.findOne({ email: decoded.email });
+
+      if (!franchiser) {
+          return res.status(404).json({ error: 'Franchiser not found' });
+      }
+
+      // Update franchiser's is-email-verified flag to true
+      await franchiser.updateOne({ is_email_verified: 1 });
+
+      res.status(200).json({ message: 'Email verified successfully' });
+  } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Function to send verification email
+async function sendVerificationEmail(email, token) {
+  // Create reusable transporter object using the default SMTP transport
+  let transporter = nodemailer.createTransport({
+      // Your email SMTP configuration here
+      service: 'Gmail',
+      auth: {
+          user: 'aminah30akhtar3a@gmail.com', // Your Gmail email address
+          pass: 'rekk zctd wual aepq' //app password
+      },
+      tls: {
+          rejectUnauthorized: false // Trust self-signed certificate
+      }
+  });
+
+  // Send mail with defined transport object
+  let info = await transporter.sendMail({
+      from: '"BSHM - Email Verification" <aminah30akhtar3a@gmail.com>',
+      to: email,
+      subject: 'Email Verification',
+      text: `Please click the following link to verify your email: http://localhost:5000/api/franchiser/verify-email/${token}`,
+      html: `<h4 style="color: black;">Welcome User, <br>
+      Thank you for registering at BSHM (Battery Swapping And Health Monitoring Application)</h4>
+      <p style="color: black;">Please click the following link to verify your email: <a href="http://localhost:5000/api/franchiser/verify-email/${token}">Verify Email</a></p>`
+  });
+
+  console.log('Message sent: %s', info.messageId);
+}
+
+router.get('/check-email-verification', async (req, res) => {
+  try {
+      const { email } = req.query;
+
+      if (!email) {
+          return res.status(400).json({ error: 'Email is required' });
+      }
+
+      // Access database to check is_email_verified
+      const franchiser = await Franchiser.findOne({ email });
+
+      if (!franchiser) {
+          return res.status(404).json({ error: 'Franchiser not found' });
+      }
+
+      if (franchiser.is_email_verified === 0) {
+          return res.status(400).json({ message: 'Please verify email' });
+      } else {
+          return res.status(200).json({ message: 'Email verified' });
+      }
+  } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+  }
+});
+// view all recieved swap request
+router.get('/view-all-request/:franchiserPhoneNumber', async (req, res) => {
+  try {
+      const { franchiserPhoneNumber } = req.params;
+
+      // Find franchiser by phone number
+      const franchiser = await Franchiser.findOne({ phoneNumber: franchiserPhoneNumber });
+
+      if (!franchiser) {
+          return res.status(404).json({ error: 'Franchiser not found' });
+      }
+
+      // Find all swap requests associated with the franchiser ID
+      const swapRequests = await SwapRequest.find({ franchiser: franchiser._id });
+
+      res.status(200).json({ swapRequests });
+  } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+  }
+});
+router.put('/accept-swap-request/:swapRequestId', async (req, res) => {
+  try {
+      const { swapRequestId } = req.params;
+
+      // Find the swap request by ID
+      const swapRequest = await SwapRequest.findById(swapRequestId);
+
+      if (!swapRequest) {
+          return res.status(404).json({ error: 'Swap request not found' });
+      }
+
+      // Update the swap request status to "accepted"
+      swapRequest.request = 'accepted';
+      await swapRequest.save();
+
+      res.status(200).json({ message: 'Swap request status updated to accepted' });
+  } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+  }
+});
+router.put('/reject-swap-request/:swapRequestId', async (req, res) => {
+  try {
+      const { swapRequestId } = req.params;
+
+      // Find the swap request by ID
+      const swapRequest = await SwapRequest.findById(swapRequestId);
+
+      if (!swapRequest) {
+          return res.status(404).json({ error: 'Swap request not found' });
+      }
+
+      // Update the swap request status to "accepted"
+      swapRequest.request = 'rejected';
+      await swapRequest.save();
+
+      res.status(200).json({ message: 'Swap request status updated to rejected' });
+  } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 module.exports = router

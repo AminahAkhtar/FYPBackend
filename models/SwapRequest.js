@@ -14,20 +14,23 @@ const SwapRequestSchema = new Schema({
         type: Schema.Types.ObjectId,
         ref: 'Battery' 
     },
-    status: {
-        type: String,
-        enum: ['swapped', 'cancelled', 'pending'],
-        required: true
+    batteryStatus: {
+        type: String
+    
     },
     request:{
-        type: String,
-        enum: ['accept', 'reject'],
-        required: true
+        type: String  
     },
     amount:{
-        type: String,
-        enum: ['paid', 'unpaid'],
-        required: true
+        type: String
+        
+    },
+    datetime: {
+        type: Date,
+        default: Date.now 
+    },
+    token:{
+        type: String
     }
     
 });

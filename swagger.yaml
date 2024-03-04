@@ -1,0 +1,32 @@
+openapi: 3.0.0
+info:
+  title: Battery Swapping And Health Monitoring API
+  version: 1.0.0
+paths:
+  /api/biker/requestSwap:
+    post:
+      summary: Create a new swap request
+      tags: [Biker]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bikerPhoneNumber:
+                  type: string
+                franchiserPhoneNumber:
+                  type: string
+                batteryId:
+                  type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string

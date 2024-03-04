@@ -3,37 +3,30 @@ const mongoose = require('mongoose')
 const {Schema} = mongoose
 const BatterySchema = new Schema({
     battery_number:{
-        type:String,
-        required: true
+        type:String
     },
     franchiser: {
         type: Schema.Types.ObjectId,
         ref: 'Franchiser' 
     },
     price:{
-        type:Number,
-        required:true
+        type:Number
     },
     numberOfSwapTrips:{
-        type:Number,
-        required: true
+        type:Number
     },
     currentSOC:{
-        type:Number,
-        required: true
+        type:Number
     },
     thisSTSOC:{
-        type:Number,
-        required: true
+        type:Number
     },
     lastSTSOC:{
-        type:Number,
-        required: true
+        type:Number
     },
     lastSTSOC:{
-        type:Number,
-        required: true
-    },
+        type:Number
+    }
     
 });
 

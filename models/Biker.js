@@ -3,34 +3,34 @@ const mongoose = require('mongoose')
 const {Schema} = mongoose
 const BikerSchema = new Schema({
     name:{
-        type:String,
-        required: true
+        type:String
     },
     email:{
         type:String,
-        required: true,
         unique:true
     },
     phoneNumber:{
         type:String,
-        required: true,
         unique:true
     },
     location: {
         type: {
             type: String,
-            enum: ['Point'], // Only allow "Point" type for location
-            required: true
+            enum: ['Point'] // Only allow "Point" type for location
+            
         },
         coordinates: {
-            type: [Number], // Array of numbers [longitude, latitude]
-            required: true
+            type: [Number] // Array of numbers [longitude, latitude]
+
         }
     },
-    date:{
+    is_email_verified:{
+       type:Number
+    },
+    datetime:{
         type:Date,
         default: Date.now
-    },
+    }
 });
 
 // Define a 2dsphere index on the location field

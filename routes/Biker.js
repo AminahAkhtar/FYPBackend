@@ -1,12 +1,15 @@
 const express = require('express');
 const Biker = require('../models/Biker');
+const Franchiser = require('../models/Franchiser');
+const SwapRequest = require('../models/SwapRequest');
 const router = express.Router();
 const bcrypt = require('bcryptjs')
 const {body, validationResult} = require('express-validator')
+const jwt = require('jsonwebtoken'); 
+const nodemailer = require('nodemailer');
 // const twilio = require('twilio');
 
 
-var jwt = require('jsonwebtoken')
 // var fetchuser = require('../middleware/fetchuser')
 const JWT_SECRET = 'bshm'
 // Twilio credentials
@@ -224,6 +227,290 @@ router.post('/generate-otp', async (req, res) => {
 
   // Return the generated OTP
   return res.json({ otp });
+});
+
+
+// Function to calculate the distance between two points using Haversine formula
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Radius of the Earth in kilometers
+  const dLat = (lat2 - lat1) * (Math.PI / 180);  // Convert degrees to radians
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1) * (Math.PI / 180)) * Math.cos((lat2) * (Math.PI / 180)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distance = R * c; // Distance in kilometers
+  return distance;
+}
+
+// Route to get nearest franchisers based on biker's phone number
+router.get('/nearest-franchisers/:phoneNumber', async (req, res) => {
+  try {
+      const { phoneNumber } = req.params;
+
+      // Find the biker based on phone number
+      const biker = await Biker.findOne({ phoneNumber });
+
+      if (!biker) {
+          return res.status(404).json({ error: 'Biker not found' });
+      }
+
+      // Ensure that the biker's location data exists and is not null
+      if (!biker.location || !biker.location.coordinates) {
+          return res.status(400).json({ error: 'Biker location data is missing or invalid' });
+      }
+
+      // Retrieve latitude and longitude of the biker
+      const bikerLatitude = biker.location.coordinates[1];
+      const bikerLongitude = biker.location.coordinates[0];
+
+     // Find nearest franchisers based on biker's location
+     const franchisers = await Franchiser.find({});
+
+     // Calculate distances and filter nearest franchisers
+     const nearestFranchisers = franchisers.filter(franchiser => {
+         const distance = calculateDistance(
+             bikerLatitude,
+             bikerLongitude,
+             franchiser.location.coordinates[1],
+             franchiser.location.coordinates[0]
+         );
+         return distance < 500; // Considering franchisers within 500 kilometers
+     });
+
+     const simplifiedFranchisers = nearestFranchisers.map(franchiser => {
+      const distance = calculateDistance(
+          bikerLatitude,
+          bikerLongitude,
+          franchiser.location.coordinates[1],
+          franchiser.location.coordinates[0]
+      );
+  
+      return {
+          name: franchiser.name,
+          coordinates: franchiser.location.coordinates,
+          distance: distance.toFixed(2) // Convert distance to fixed decimal places
+      };
+  });
+  
+  return res.json({ nearestFranchisers: simplifiedFranchisers });
+  } catch (error) {
+      console.error('Error finding nearest franchisers:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+// Endpoint for bikers to send swap requests to swap stations
+router.post('/requestSwap', async (req, res) => {
+  const { bikerPhoneNumber, franchiserPhoneNumber, batteryId } = req.body;
+
+  try {
+      // Fetch the biker ID based on the phone number
+      const biker = await Biker.findOne({ phoneNumber: bikerPhoneNumber });
+      if (!biker) {
+          return res.status(404).json({ message: 'Biker not found' });
+      }
+
+      // Fetch the franchiser ID based on the phone number
+      const franchiser = await Franchiser.findOne({ phoneNumber: franchiserPhoneNumber });
+      if (!franchiser) {
+          return res.status(404).json({ message: 'Franchiser not found' });
+      }
+
+      // Create a new swap request and save it to the database
+      const now = new Date();
+      const swapRequest = new SwapRequest({
+          biker: biker._id,
+          franchiser: franchiser._id,
+          battery: batteryId,
+          batteryStatus: '',
+          request: '',
+          amount: '',
+          datetime: now,
+      });
+      await swapRequest.save();
+
+      // Send email notification to franchiser
+      const message = `Battery Swapping And Health Monitoring Application - Alert!`;
+      await sendEmailNotification(franchiser.email, message);
+
+      // Return the swap request ID as part of the response
+      res.status(200).json({ message: 'A new swap request is generated', swapRequestId: swapRequest._id });
+
+  } catch (error) {
+      console.error('Error processing swap request:', error);
+      res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+// Check Swap Request Status endpoint
+router.get('/checkSwapRequestStatus/:swapRequestId', async (req, res) => {
+  const { swapRequestId } = req.params;
+
+  try {
+      // Fetch the swap request based on the provided ID
+      const swapRequest = await SwapRequest.findById(swapRequestId);
+      if (!swapRequest) {
+          return res.status(404).json({ message: 'Swap request not found' });
+      }
+
+      // Check the status and respond accordingly
+      if (swapRequest.request === 'accepted') {
+          res.status(200).json({ message: 'Request accepted, proceed to payment' });
+      } else if (swapRequest.request === 'rejected' || swapRequest.request === '') {
+          res.status(200).json({ message: 'Send request to another station' });
+      }
+
+  } catch (error) {
+      console.error('Error checking swap request status:', error);
+      res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+// Function to send email notification to franchiser
+async function sendEmailNotification(franchiserEmail, message, token) {
+  // Create a Nodemailer transporter
+  const transporter = nodemailer.createTransport({
+      service: 'Gmail',
+      auth: {
+          user: 'aminah30akhtar3a@gmail.com', // Your Gmail email address
+          pass: 'rekk zctd wual aepq' //app password
+      },
+      tls: {
+          rejectUnauthorized: false // Trust self-signed certificate
+      }
+  });
+
+  // Email message options
+  const mailOptions = {
+      from: 'BSHM - Swap Request Notification <aminah30akhtar3a@gmail.com>', // Sender email address
+      to: franchiserEmail, // Receiver email address
+      subject: 'BSHM - Swap Request Notification',
+      html: `<h4 style="color: black;">${message}</h4>
+      <p style="color: black;">Dear Franshier, <br>
+         A new swap request is received. Please check your application dashboard for further actions. <br>
+         Thank You.<br>
+         Team BSHM. </p>`
+  };
+
+  try {
+      // Send email
+      const info = await transporter.sendMail(mailOptions);
+      console.log('Email notification sent:', info.response);
+  } catch (error) {
+      console.error('Error sending email notification:', error);
+  }
+}
+
+//Verify email
+// Endpoint to receive name, email, and phone number and generate a token
+router.post('/register', async (req, res) => {
+  try {
+      const { name, email, phoneNumber } = req.body;
+
+      // Find franchiser by phone number
+      const biker = await Biker.findOne({ phoneNumber });
+
+      if (!biker) {
+          return res.status(404).json({ error: 'Biker not found' });
+      }
+
+      // Generate JWT token
+      const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: '1h' });
+
+      // Update franchiser with name, email, token, and is-email-verified flag
+      await biker.updateOne({ name, email, token, is_email_verified: 0 });
+
+      // Send email with token
+      await sendVerificationEmail(email, token);
+
+      res.status(200).json({ message: 'Verification email sent' });
+  } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Endpoint to verify email by token
+router.get('/verify-email/:token', async (req, res) => {
+  try {
+      const token = req.params.token;
+
+      // Verify JWT token
+      const decoded = jwt.verify(token, JWT_SECRET);
+
+      // Find franchiser by decoded email
+      const biker = await Biker.findOne({ email: decoded.email });
+
+      if (!biker) {
+          return res.status(404).json({ error: 'Biker not found' });
+      }
+
+      // Update franchiser's is-email-verified flag to true
+      await biker.updateOne({ is_email_verified: 1 });
+
+      res.status(200).json({ message: 'Email verified successfully' });
+  } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Function to send verification email
+async function sendVerificationEmail(email, token) {
+  // Create reusable transporter object using the default SMTP transport
+  let transporter = nodemailer.createTransport({
+      // Your email SMTP configuration here
+      service: 'Gmail',
+      auth: {
+          user: 'aminah30akhtar3a@gmail.com', // Your Gmail email address
+          pass: 'rekk zctd wual aepq' //app password
+      },
+      tls: {
+          rejectUnauthorized: false // Trust self-signed certificate
+      }
+  });
+
+  // Send mail with defined transport object
+  let info = await transporter.sendMail({
+      from: '"BSHM - Email Verification" <aminah30akhtar3a@gmail.com>',
+      to: email,
+      subject: 'Email Verification',
+      text: `Please click the following link to verify your email: http://localhost:5000/api/biker/verify-email/${token}`,
+      html: `<h4 style="color: black;">Welcome User, <br>
+       Thank you for registering at BSHM (Battery Swapping And Health Monitoring Application)</h4>
+      <p style="color: black;">Please click the following link to verify your email: <a href="http://localhost:5000/api/biker/verify-email/${token}">Verify Email</a></p>`
+  });
+
+  console.log('Message sent: %s', info.messageId);
+}
+
+router.get('/check-email-verification', async (req, res) => {
+  try {
+      const { email } = req.query;
+
+      if (!email) {
+          return res.status(400).json({ error: 'Email is required' });
+      }
+
+      // Access database to check is_email_verified
+      const biker = await Biker.findOne({ email });
+
+      if (!biker) {
+          return res.status(404).json({ error: 'Biker not found' });
+      }
+
+      if (biker.is_email_verified === 0) {
+          return res.status(400).json({ message: 'Please verify email' });
+      } else {
+          return res.status(200).json({ message: 'Email verified' });
+      }
+  } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 module.exports = router
