@@ -3,7 +3,7 @@ info:
   title: Battery Swapping And Health Monitoring API
   version: 1.0.0
 paths:
-  /api/biker/nearest-franchisers/{phoneNumber}:
+  /api/biker/nearest-franchiser/{phoneNumber}:
     get:
       summary: Get nearest franchisers based on biker's phone number
       tags: [Biker]

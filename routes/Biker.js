@@ -7,6 +7,8 @@ const bcrypt = require('bcryptjs')
 const {body, validationResult} = require('express-validator')
 const jwt = require('jsonwebtoken'); 
 const nodemailer = require('nodemailer');
+const axios = require('axios');
+
 // const twilio = require('twilio');
 
 
@@ -229,79 +231,246 @@ router.post('/generate-otp', async (req, res) => {
   return res.json({ otp });
 });
 
+//google map [lat,lng]
+//nodejs bydefault [lng,lat]
 
 // Function to calculate the distance between two points using Haversine formula
-function calculateDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371; // Radius of the Earth in kilometers
-  const dLat = (lat2 - lat1) * (Math.PI / 180);  // Convert degrees to radians
-  const dLon = (lon2 - lon1) * (Math.PI / 180);
-  const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos((lat1) * (Math.PI / 180)) * Math.cos((lat2) * (Math.PI / 180)) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const distance = R * c; // Distance in kilometers
-  return distance;
-}
+// function calculateDistance(lat1, lon1, lat2, lon2) {
+//   const R = 6371; // Radius of the Earth in kilometers
+//   const dLat = (lat2 - lat1) * (Math.PI / 180);  // Convert degrees to radians
+//   const dLon = (lon2 - lon1) * (Math.PI / 180);
+//   const a =
+//       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+//       Math.cos((lat1) * (Math.PI / 180)) * Math.cos((lat2) * (Math.PI / 180)) *
+//       Math.sin(dLon / 2) * Math.sin(dLon / 2);
+//   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+//   const distance = R * c; // Distance in kilometers
+//   return distance;
+// }
+
+// // Route to get nearest franchisers based on biker's phone number
+// router.get('/nearest-franchisers/:phoneNumber', async (req, res) => {
+//     try {
+//         const { phoneNumber } = req.params;
+
+//         // Find the biker based on phone number
+//         const biker = await Biker.findOne({ phoneNumber });
+
+//         if (!biker) {
+//             return res.status(404).json({ error: 'Biker not found' });
+//         }
+
+//         // Ensure that the biker's location data exists and is not null
+//         if (!biker.location || !biker.location.coordinates) {
+//             return res.status(400).json({ error: 'Biker location data is missing or invalid' });
+//         }
+
+//         // Retrieve latitude and longitude of the biker
+//         const bikerLatitude = biker.location.coordinates[0];
+//         const bikerLongitude = biker.location.coordinates[1];
+
+//         // Find nearest franchisers based on biker's location
+//         const franchisers = await Franchiser.find({});
+
+//         // Calculate distances and filter nearest franchisers
+//         const nearestFranchisers = franchisers.filter(franchiser => {
+//             const distance = calculateDistance(
+//                 bikerLatitude,
+//                 bikerLongitude,
+//                 franchiser.location.coordinates[0],
+//                 franchiser.location.coordinates[1]
+//             );
+//             return distance < 500; // Considering franchisers within 500 kilometers
+//         });
+
+//         // Send the coordinates to the client-side JavaScript
+//         res.send(`
+//             <!DOCTYPE html>
+//             <html lang="en">
+//             <head>
+//                 <meta charset="UTF-8">
+//                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+//                 <title>Map</title>
+//                 <style>
+//                     /* Set the map container size */
+//                     #map {
+//                         height: 100vh;
+//                         width: 100%;
+//                     }
+//                 </style>
+//             </head>
+//             <body>
+//                 <!-- Map container -->
+//                 <div id="map"></div>
+
+//                 <script>
+//                     // Initialize the map
+//                     function initMap() {
+//                         // Get the biker location coordinates from the server
+//                         const bikerLocation = { lat: ${bikerLatitude}, lng: ${bikerLongitude} };
+
+//                         // Create a new map centered at the biker location
+//                         const map = new google.maps.Map(document.getElementById("map"), {
+//                             center: bikerLocation,
+//                             zoom: 12,
+//                             mapTypeId: "roadmap" // Use roadmap map type
+//                         });
+
+//                         // Create a marker for the biker location
+//                         const bikerMarker = new google.maps.Marker({
+//                             position: bikerLocation,
+//                             map: map,
+//                             icon: {
+//                                 url: 'http://maps.gstatic.com/mapfiles/ms2/micons/motorcycling.png',
+//                                 scaledSize: new google.maps.Size(50, 50), // Set the size of the marker icon
+//                             }
+//                         });
+
+//                         // Create an InfoWindow for the biker
+//                         const bikerInfoWindow = new google.maps.InfoWindow({
+//                             content: '<div>Biker Name: ${biker.name}</div>' // Content of the InfoWindow
+//                         });
+//                         bikerInfoWindow.open(map, bikerMarker);
+                        
+
+//                         // Create markers for nearest franchisers
+//                         const directionsService = new google.maps.DirectionsService(); // Declare outside the loop
+//                         ${nearestFranchisers.map((franchiser, index) => `
+//                             const franchiserLocation${index} = { lat: ${franchiser.location.coordinates[0]}, lng: ${franchiser.location.coordinates[1]} };
+//                             const franchiserMarker${index} = new google.maps.Marker({
+//                                 position: franchiserLocation${index},
+//                                 map: map,
+//                                 icon: {
+//                                     url: 'http://maps.gstatic.com/mapfiles/ms2/micons/gas.png',
+//                                     scaledSize: new google.maps.Size(50, 50), // Set the size of the marker icon
+//                                 },
+//                                 id: 'marker${index}', // Assign a unique marker ID
+//                                 franchiserId: '${franchiser._id}' // Assign franchiser ID to the marker
+//                             });
+        
+//                             // Create an InfoWindow for the franchiser
+//                             const franchiserInfoWindow${index} = new google.maps.InfoWindow();
+        
+//                             // Send a request to the Directions API to get route information
+//                             const request${index} = {
+//                                 origin: bikerLocation,
+//                                 destination: franchiserLocation${index},
+//                                 travelMode: 'DRIVING'
+//                             };
+//                             directionsService.route(request${index}, (response, status) => {
+//                                 if (status === 'OK') {
+//                                     // Parse the response to extract distance and duration
+//                                     const distance = response.routes[0].legs[0].distance.text;
+//                                     const duration = response.routes[0].legs[0].duration.text;
+        
+//                                     // Set the content of the InfoWindow
+//                                     franchiserInfoWindow${index}.setContent('<div> Swap Station Name: ${franchiser.name}</div><div>Distance: ' + distance + '</div><div>Duration: ' + duration + '</div>');
+        
+//                                     // Open the InfoWindow at the franchiser location
+//                                     franchiserInfoWindow${index}.open(map, franchiserMarker${index});
+//                                 } else {
+//                                     window.alert('Directions request failed due to ' + status);
+//                                 }
+//                             });
+//                         `).join('\n')}
+//                     }
+//                 </script>
+
+//                 <!-- Call the initMap function after the API is loaded -->
+//                 <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDK7vRWhnxX8DgluGK9oT5K47AfSEz-J84&callback=initMap"></script>
+//             </body>
+//             </html>
+//         `);
+//     } catch (error) {
+//         console.error('Error finding nearest franchisers:', error);
+//         return res.status(500).json({ error: 'Internal server error' });
+//     }
+// });
+
 
 // Route to get nearest franchisers based on biker's phone number
-router.get('/nearest-franchisers/:phoneNumber', async (req, res) => {
-  try {
-      const { phoneNumber } = req.params;
 
-      // Find the biker based on phone number
-      const biker = await Biker.findOne({ phoneNumber });
 
-      if (!biker) {
-          return res.status(404).json({ error: 'Biker not found' });
-      }
+router.get('/nearest-franchiser/:phoneNumber', async (req, res) => {
+    try {
+        const { phoneNumber } = req.params;
 
-      // Ensure that the biker's location data exists and is not null
-      if (!biker.location || !biker.location.coordinates) {
-          return res.status(400).json({ error: 'Biker location data is missing or invalid' });
-      }
+        // Find the biker based on phone number
+        const biker = await Biker.findOne({ phoneNumber });
 
-      // Retrieve latitude and longitude of the biker
-      const bikerLatitude = biker.location.coordinates[1];
-      const bikerLongitude = biker.location.coordinates[0];
+        if (!biker) {
+            return res.status(404).json({ error: 'Biker not found' });
+        }
 
-     // Find nearest franchisers based on biker's location
-     const franchisers = await Franchiser.find({});
+        // Ensure that the biker's location data exists and is not null
+        if (!biker.location || !biker.location.coordinates) {
+            return res.status(400).json({ error: 'Biker location data is missing or invalid' });
+        }
 
-     // Calculate distances and filter nearest franchisers
-     const nearestFranchisers = franchisers.filter(franchiser => {
-         const distance = calculateDistance(
-             bikerLatitude,
-             bikerLongitude,
-             franchiser.location.coordinates[1],
-             franchiser.location.coordinates[0]
-         );
-         return distance < 500; // Considering franchisers within 500 kilometers
-     });
+        // Retrieve latitude and longitude of the biker
+        const bikerLatitude = biker.location.coordinates[0];
+        const bikerLongitude = biker.location.coordinates[1];
 
-     const simplifiedFranchisers = nearestFranchisers.map(franchiser => {
-      const distance = calculateDistance(
-          bikerLatitude,
-          bikerLongitude,
-          franchiser.location.coordinates[1],
-          franchiser.location.coordinates[0]
-      );
-  
-      return {
-          name: franchiser.name,
-          coordinates: franchiser.location.coordinates,
-          distance: distance.toFixed(2) // Convert distance to fixed decimal places
-      };
-  });
-  
-  return res.json({ nearestFranchisers: simplifiedFranchisers });
-  } catch (error) {
-      console.error('Error finding nearest franchisers:', error);
-      return res.status(500).json({ error: 'Internal server error' });
-  }
+        // Find all franchisers
+        const franchisers = await Franchiser.find({});
+
+        // Calculate distances and filter nearest franchisers
+        const nearestFranchisers = [];
+        for (const franchiser of franchisers) {
+            // Calculate distance between biker and franchiser
+            const response = await axios.get('https://maps.googleapis.com/maps/api/directions/json', {
+                params: {
+                    origin: `${bikerLatitude},${bikerLongitude}`,
+                    destination: `${franchiser.location.coordinates[0]},${franchiser.location.coordinates[1]}`,
+                    key: 'AIzaSyDK7vRWhnxX8DgluGK9oT5K47AfSEz-J84',
+                },
+            });
+
+            const route = response.data.routes[0];
+            const distance = route.legs[0].distance.value; // Distance in meters
+            const duration = route.legs[0].duration.text;
+            const originalDurationInSeconds = route.legs[0].duration.value; // Get the duration in seconds
+
+            // Convert duration to minutes and add 10 minutes
+            const totalDurationInMinutes = Math.ceil((originalDurationInSeconds + (10 * 60)) / 60);
+
+            // Check if total duration is greater than or equal to 60 minutes
+            if (totalDurationInMinutes >= 60) {
+                const hours = Math.floor(totalDurationInMinutes / 60);
+                const minutes = totalDurationInMinutes % 60;
+                totalDuration = `${hours} hr ${minutes} mins`;
+            } else {
+                totalDuration = `${totalDurationInMinutes} mins`;
+            }
+
+            if (distance < 500000) { // Consider franchisers within 500 kilometers (500,000 meters)
+                nearestFranchisers.push({
+                    franchiserId: franchiser._id,
+                    franchiserName: franchiser.name,
+                    franchiserPhoneNumber: franchiser.phoneNumber,
+                    distance: distance / 1000 + ' kms', // Convert distance to kilometers
+                    durationToReach: totalDuration,
+                    franchiserLocation: {
+                        latitude: franchiser.location.coordinates[0],
+                        longitude: franchiser.location.coordinates[1]
+                    },
+                });
+            }
+        }
+
+        return res.json({
+            nearestFranchisers,
+            biker: {
+                bikerName: biker.name,
+                latitude: bikerLatitude,
+                longitude: bikerLongitude,
+            },
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
 });
-
-
 // Endpoint for bikers to send swap requests to swap stations
 router.post('/requestSwap', async (req, res) => {
   const { bikerPhoneNumber, franchiserPhoneNumber, batteryId } = req.body;
@@ -518,5 +687,116 @@ router.get('/check-email-verification', async (req, res) => {
       res.status(500).json({ error: 'Internal server error' });
   }
 });
+const { createClient } = require('@google/maps');
+const googleMapsClient = createClient({
+  key: 'AIzaSyDK7vRWhnxX8DgluGK9oT5K47AfSEz-J84' // Replace 'YOUR_API_KEY' with your actual Google Maps API key
+});
+//google map [lat,lng]
+//nodejs bydefault [lng,lat]
+router.get('/bikerlocation/map/:phoneNumber', async (req, res) => {
+    try {
+        // Fetch the biker location from the database
+        const phoneNumber = req.params.phoneNumber;
+        const biker = await Biker.findOne({ phoneNumber });
 
+        if (!biker) {
+            return res.status(404).json({ error: 'Biker not found' });
+        }
+        const bikerName = biker.name;
+        // Extract longitude and latitude from the coordinates
+        const [latitude, longitude] = biker.location.coordinates;
+
+        // Send the coordinates to the client-side JavaScript
+        res.send(`
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Map</title>
+                <style>
+                    /* Set the map container size */
+                    #map {
+                        height: 100vh;
+                        width: 100%;
+                    }
+                </style>
+            </head>
+            <body>
+                <!-- Map container -->
+                <div id="map"></div>
+
+                <script>
+                    // Initialize the map
+                    function initMap() {
+                        // Get the biker location coordinates from the server
+                        const bikerLocation = {   lat: ${latitude}, lng: ${longitude} }; // Coordinates passed from the server
+
+                        // Create a new map centered at the biker location
+                        const map = new google.maps.Map(document.getElementById("map"), {
+                            center: bikerLocation,
+                            zoom: 12,
+                            mapTypeId: "roadmap" // Use roadmap map type
+                           
+                        });
+
+                        // Create a marker for the biker location
+                        const marker = new google.maps.Marker({
+                            position: bikerLocation,
+                            map: map,
+                            icon: {
+                                url: 'http://maps.gstatic.com/mapfiles/ms2/micons/motorcycling.png',
+                                scaledSize: new google.maps.Size(50, 50), // Set the size of the marker icon
+                            }
+                        });
+
+                        // Create an InfoWindow for the biker
+                        const infoWindow = new google.maps.InfoWindow({
+                            content: '<div>Biker Name: ${JSON.stringify(bikerName)}</div>' // Content of the InfoWindow
+                        });
+
+                        // Open the InfoWindow at the biker location
+                        // infoWindow.setPosition(bikerLocation);
+                        infoWindow.open(map, marker);
+                    }
+                </script>
+                <!-- Call the initMap function after the API is loaded -->
+                <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDK7vRWhnxX8DgluGK9oT5K47AfSEz-J84&callback=initMap"></script>
+            </body>
+            </html>
+        `);
+    } catch (error) {
+        console.error('Error fetching biker location:', error);
+        res.status(500).send('Internal server error');
+    }
+   
+});
+
+  // Route to calculate ETA to swap station
+  router.get('/eta', async (req, res) => {
+    try {
+      // Retrieve biker's location and swap station location from the database
+      const bikerLocation = { lat: 37.7749, lng: -122.4194 }; // Example biker location (San Francisco)
+      const swapStationLocation = { lat: 37.7837, lng: -122.4089 }; // Example swap station location
+  
+      // Calculate ETA using Google Maps Directions API
+      googleMapsClient.directions({
+        origin: bikerLocation,
+        destination: swapStationLocation,
+        mode: 'driving'
+      }, (err, response) => {
+        if (!err) {
+          const duration = response.json.routes[0].legs[0].duration.text;
+          res.send(`ETA to swap station: ${duration}`);
+        } else {
+          console.error('Error calculating ETA:', err);
+          res.status(500).send('Error calculating ETA');
+        }
+      });
+    } catch (error) {
+      console.error('Error calculating ETA:', error);
+      res.status(500).send('Error calculating ETA');
+    }
+  });
+  
 module.exports = router
