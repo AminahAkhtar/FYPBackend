@@ -705,98 +705,77 @@ router.get('/bikerlocation/map/:phoneNumber', async (req, res) => {
         const bikerName = biker.name;
         // Extract longitude and latitude from the coordinates
         const [latitude, longitude] = biker.location.coordinates;
+        return res.json({
+    
+                bikerName: biker.name,
+                latitude: latitude,
+                longitude: longitude,
+        });
 
         // Send the coordinates to the client-side JavaScript
-        res.send(`
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Map</title>
-                <style>
-                    /* Set the map container size */
-                    #map {
-                        height: 100vh;
-                        width: 100%;
-                    }
-                </style>
-            </head>
-            <body>
-                <!-- Map container -->
-                <div id="map"></div>
+        // res.send(`
+        //     <!DOCTYPE html>
+        //     <html lang="en">
+        //     <head>
+        //         <meta charset="UTF-8">
+        //         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        //         <title>Map</title>
+        //         <style>
+        //             /* Set the map container size */
+        //             #map {
+        //                 height: 100vh;
+        //                 width: 100%;
+        //             }
+        //         </style>
+        //     </head>
+        //     <body>
+        //         <!-- Map container -->
+        //         <div id="map"></div>
 
-                <script>
-                    // Initialize the map
-                    function initMap() {
-                        // Get the biker location coordinates from the server
-                        const bikerLocation = {   lat: ${latitude}, lng: ${longitude} }; // Coordinates passed from the server
+        //         <script>
+        //             // Initialize the map
+        //             function initMap() {
+        //                 // Get the biker location coordinates from the server
+        //                 const bikerLocation = {   lat: ${latitude}, lng: ${longitude} }; // Coordinates passed from the server
 
-                        // Create a new map centered at the biker location
-                        const map = new google.maps.Map(document.getElementById("map"), {
-                            center: bikerLocation,
-                            zoom: 12,
-                            mapTypeId: "roadmap" // Use roadmap map type
+        //                 // Create a new map centered at the biker location
+        //                 const map = new google.maps.Map(document.getElementById("map"), {
+        //                     center: bikerLocation,
+        //                     zoom: 12,
+        //                     mapTypeId: "roadmap" // Use roadmap map type
                            
-                        });
+        //                 });
 
-                        // Create a marker for the biker location
-                        const marker = new google.maps.Marker({
-                            position: bikerLocation,
-                            map: map,
-                            icon: {
-                                url: 'http://maps.gstatic.com/mapfiles/ms2/micons/motorcycling.png',
-                                scaledSize: new google.maps.Size(50, 50), // Set the size of the marker icon
-                            }
-                        });
+        //                 // Create a marker for the biker location
+        //                 const marker = new google.maps.Marker({
+        //                     position: bikerLocation,
+        //                     map: map,
+        //                     icon: {
+        //                         url: 'http://maps.gstatic.com/mapfiles/ms2/micons/motorcycling.png',
+        //                         scaledSize: new google.maps.Size(50, 50), // Set the size of the marker icon
+        //                     }
+        //                 });
 
-                        // Create an InfoWindow for the biker
-                        const infoWindow = new google.maps.InfoWindow({
-                            content: '<div>Biker Name: ${JSON.stringify(bikerName)}</div>' // Content of the InfoWindow
-                        });
+        //                 // Create an InfoWindow for the biker
+        //                 const infoWindow = new google.maps.InfoWindow({
+        //                     content: '<div>Biker Name: ${JSON.stringify(bikerName)}</div>' // Content of the InfoWindow
+        //                 });
 
-                        // Open the InfoWindow at the biker location
-                        // infoWindow.setPosition(bikerLocation);
-                        infoWindow.open(map, marker);
-                    }
-                </script>
-                <!-- Call the initMap function after the API is loaded -->
-                <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDK7vRWhnxX8DgluGK9oT5K47AfSEz-J84&callback=initMap"></script>
-            </body>
-            </html>
-        `);
+        //                 // Open the InfoWindow at the biker location
+        //                 // infoWindow.setPosition(bikerLocation);
+        //                 infoWindow.open(map, marker);
+        //             }
+        //         </script>
+        //         <!-- Call the initMap function after the API is loaded -->
+        //         <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDK7vRWhnxX8DgluGK9oT5K47AfSEz-J84&callback=initMap"></script>
+        //     </body>
+        //     </html>
+        // `);
     } catch (error) {
         console.error('Error fetching biker location:', error);
         res.status(500).send('Internal server error');
     }
    
 });
-
-  // Route to calculate ETA to swap station
-  router.get('/eta', async (req, res) => {
-    try {
-      // Retrieve biker's location and swap station location from the database
-      const bikerLocation = { lat: 37.7749, lng: -122.4194 }; // Example biker location (San Francisco)
-      const swapStationLocation = { lat: 37.7837, lng: -122.4089 }; // Example swap station location
-  
-      // Calculate ETA using Google Maps Directions API
-      googleMapsClient.directions({
-        origin: bikerLocation,
-        destination: swapStationLocation,
-        mode: 'driving'
-      }, (err, response) => {
-        if (!err) {
-          const duration = response.json.routes[0].legs[0].duration.text;
-          res.send(`ETA to swap station: ${duration}`);
-        } else {
-          console.error('Error calculating ETA:', err);
-          res.status(500).send('Error calculating ETA');
-        }
-      });
-    } catch (error) {
-      console.error('Error calculating ETA:', error);
-      res.status(500).send('Error calculating ETA');
-    }
-  });
   
 module.exports = router
