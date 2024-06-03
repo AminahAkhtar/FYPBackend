@@ -12,20 +12,14 @@ const BatterySchema = new Schema({
     price:{
         type:Number
     },
-    numberOfSwapTrips:{
+    SOC:{
         type:Number
     },
-    currentSOC:{
+    batterylevel:{
         type:Number
     },
-    thisSTSOC:{
-        type:Number
-    },
-    lastSTSOC:{
-        type:Number
-    },
-    lastSTSOC:{
-        type:Number
+    mac_address:{
+        type: String
     }
     
 });

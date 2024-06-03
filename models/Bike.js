@@ -6,6 +6,10 @@ const BikeSchema = new Schema({
         type:String,
         required: true
     },
+    battery: {
+        type: Schema.Types.ObjectId,
+        ref: 'Battery' 
+    },
     biker: {
         type: Schema.Types.ObjectId,
         ref: 'Biker' 

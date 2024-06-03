@@ -779,3 +779,130 @@ router.get('/bikerlocation/map/:phoneNumber', async (req, res) => {
 });
   
 module.exports = router
+
+
+// const express = require('express');
+// const bodyParser = require('body-parser');
+// const JazzCash = require('jazzcash-checkout');
+
+// const app = express();
+// app.use(bodyParser.json());
+
+// // Initialize JazzCash with your credentials
+// JazzCash.credentials({
+//   config: {
+//     merchantId: 'your_merchant_id', // Your JazzCash Merchant ID
+//     password: 'your_password', // Your JazzCash Merchant password
+//     hashKey: 'your_hash_key', // Your JazzCash Hash Key
+//   },
+//   environment: 'sandbox', // Set to 'sandbox' for testing, 'live' for production
+// });
+
+// // Sequential invoice number generator
+// let lastInvoiceNumber = 1000; // Initialize with the last used invoice number
+
+// function generateInvoiceNumber() {
+//   lastInvoiceNumber++; // Increment the last used invoice number
+//   return 'INV-' + lastInvoiceNumber; // Format the invoice number
+// }
+
+// // Route to handle bank-to-bank transfer initiation
+// app.post('/api/payment/bank-transfer', async (req, res) => {
+//   const { amount, senderBankAccount, recipientBankAccount } = req.body;
+
+//   // Generate invoice number
+//   const invoiceNumber = generateInvoiceNumber();
+
+//   // Create payment request
+//   const data = {
+//     pp_Version: '1.1',
+//     pp_Amount: amount.toString(), // Convert amount to string
+//     pp_TxnCurrency: 'PKR',
+//     pp_BillReference: invoiceNumber, // Use generated invoice number
+//     pp_Description: 'Bank transfer', // Customize description as needed
+//     pp_SenderBankAccount: senderBankAccount, // Sender's bank account number
+//     pp_RecipientBankAccount: recipientBankAccount, // Recipient's bank account number
+//   };
+
+//   try {
+//     // Initiate bank transfer payment using JazzCash
+//     const response = await JazzCash.pay(data);
+//     if (response.pp_SecureHash) {
+//       // Payment successful
+//       res.status(200).json({ success: true, message: 'Bank transfer successful', response });
+//     } else {
+//       // Payment failed
+//       res.status(400).json({ success: false, message: 'Bank transfer failed', response });
+//     }
+//   } catch (error) {
+//     console.error('Error:', error);
+//     res.status(500).json({ success: false, message: 'An error occurred while processing the bank transfer' });
+//   }
+// });
+
+// // Start server
+// const PORT = process.env.PORT || 3000;
+// app.listen(PORT, () => {
+//   console.log(`Server running on port ${PORT}`);
+// });
+
+
+//Battery info
+// Endpoint to retrieve battery information based on MAC address
+router.get('/battery-info/:macAddress', async (req, res) => {
+    const { macAddress } = req.params;
+  
+    try {
+      // Find the battery based on the provided MAC address
+      const battery = await Battery.findOne({ mac_address: macAddress });
+  
+      if (!battery) {
+        return res.status(404).json({ error: 'Battery with provided MAC address not found' });
+      }
+  
+      // Extract battery information
+      const { battery_number, franchiser, price, SOC, batterylevel } = battery;
+  
+      // Construct the response object
+      const batteryInfo = {
+        battery_number,
+        franchiser,
+        price,
+        SOC,
+        batterylevel
+      };
+  
+      return res.json(batteryInfo);
+    } catch (error) {
+      console.error('Error fetching battery information:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+// Endpoint to store latitude and longitude values of a biker based on email
+router.post('/store-location', async (req, res) => {
+    const { email, latitude, longitude } = req.body;
+  
+    try {
+      // Find the biker based on the provided email
+      const biker = await Biker.findOne({ email });
+  
+      if (!biker) {
+        return res.status(404).json({ error: 'Biker with provided email not found' });
+      }
+  
+      // Update the location coordinates of the biker
+      biker.location = {
+        type: 'Point',
+        coordinates: [longitude, latitude]
+      };
+  
+      // Save the updated biker document
+      await biker.save();
+  
+      return res.status(200).json({ message: 'Location stored successfully' });
+    } catch (error) {
+      console.error('Error storing biker location:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });

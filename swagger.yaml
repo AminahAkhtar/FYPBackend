@@ -719,3 +719,105 @@ paths:
                   error:
                     type: string
                     description: Error message
+
+  /api/biker/battery-info/{macAddress}:
+    get:
+      summary: Retrieve battery information based on MAC address
+      tags: [Biker]
+      parameters:
+        - in: path
+          name: macAddress
+          required: true
+          description: MAC address of the biker's battery
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Battery information retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  battery_number:
+                    type: string
+                    description: The number of the battery
+                  franchiser:
+                    type: string
+                    description: The franchiser associated with the battery
+                  price:
+                    type: number
+                    description: The price of the battery
+                  SOC:
+                    type: number
+                    description: The state of charge (SOC) of the battery
+                  batterylevel:
+                    type: number
+                    description: The battery level
+        '404':
+          description: Battery with provided MAC address not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+  /api/biker/store-location:
+    post:
+      summary: Store latitude and longitude values of a biker based on email
+      tags: [Biker]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  description: Email of the biker
+                latitude:
+                  type: number
+                  description: Latitude value
+                longitude:
+                  type: number
+                  description: Longitude value
+      responses:
+        '200':
+          description: Location stored successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '404':
+          description: Biker with provided email not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
