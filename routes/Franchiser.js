@@ -116,8 +116,45 @@ router.post('/login', [
 })
 
 
+//otp 
+// Route to handle phone number and OTP
+router.post('/otpregister', async (req, res) => {
+  const { phoneNumber, otp } = req.body;
 
-// POST request to store a new biker record by phone number
+  try {
+    
+      // Create a new biker document
+      let franchiser = new Franchiser({ phoneNumber, otp });
+      
+
+      // Save to the database
+      await franchiser.save();
+
+      res.status(201).json({ message: 'Franchiser registered successfully' });
+  } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'An error occurred' });
+  }
+});
+
+// Route to check if there is an OTP against a phone number
+router.get('/check/:phoneNumber', async (req, res) => {
+  const { phoneNumber } = req.params;
+
+  try {
+      const franchiser = await Franchiser.findOne({ phoneNumber });
+
+      if (franchiser && franchiser.otp) {
+          res.status(200).json({ message: 'Registered user', biker });
+      } else {
+          res.status(200).json({ message: 'Not registered user' });
+      }
+  } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'An error occurred' });
+  }
+});
+
 router.post('/swap-station', async (req, res) => {
   try {
       const { phoneNumber } = req.body;
@@ -232,7 +269,7 @@ router.post('/generate-otp', async (req, res) => {
 //Register A Battery
 // Endpoint to register a new battery
 router.post('/registerBattery', async (req, res) => {
-  const { franchiserPhoneNumber, battery_number, price } = req.body;
+  const { franchiserPhoneNumber, battery_number, price, status } = req.body;
 
   try {
       // Fetch the franchiser ID based on the phone number
@@ -245,7 +282,8 @@ router.post('/registerBattery', async (req, res) => {
       const battery = new Battery({
           battery_number,
           franchiser: franchiser._id,
-          price
+          price,
+          status
       });
       await battery.save();
 
@@ -258,6 +296,31 @@ router.post('/registerBattery', async (req, res) => {
       res.status(500).json({ message: 'Internal Server Error' });
   }
 });
+
+//change battery status
+// PUT route to update battery status by ID
+router.put('/updateBatteryStatus/:batteryId', async (req, res) => {
+    const { battery_number } = req.params;
+    const { status } = req.body;
+
+    try {
+        // Find the battery by ID
+        const battery = await Battery.findById(battery_number);
+        if (!battery) {
+            return res.status(404).json({ message: 'Battery not found' });
+        }
+
+        // Update the battery status
+        battery.status = status;
+        await battery.save();
+
+        res.status(200).json({ message: 'Battery status updated successfully', battery });
+    } catch (error) {
+        console.error('Error updating battery status:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
 //Display all batteries of a franchiser
 // API endpoint to display all batteries based on franchiser id
 router.get('/batteries/:franchiserPhoneNumber', async (req, res) => {
@@ -464,4 +527,75 @@ router.put('/reject-swap-request/:swapRequestId', async (req, res) => {
   }
 });
 
+
+
+router.put('/accept-swap-request-socket/:swapRequestId', async (req, res) => {
+    try {
+        const { swapRequestId } = req.params;
+  
+        // Find the swap request by ID
+        const swapRequest = await SwapRequest.findById(swapRequestId);
+  
+        if (!swapRequest) {
+            return res.status(404).json({ error: 'Swap request not found' });
+        }
+  
+        // Update the swap request status to "accepted"
+        swapRequest.request = 'accepted';
+        swapRequest.batteryStatus = 'reserved';
+        await swapRequest.save();
+  
+        // Get the franchiser ID from the swap request
+        const franchiserId = swapRequest.franchiser;
+  
+        // Deduct one from the availableBatteries field of the associated franchiser
+        const franchiser = await Franchiser.findById(franchiserId);
+        if (!franchiser) {
+            return res.status(404).json({ error: 'Franchiser not found' });
+        }
+        franchiser.availableBatteries -= 1;
+        await franchiser.save();
+  
+        // Emit event to notify the biker
+        const io = req.app.get('io');
+        io.emit('swapRequestAccepted', franchiserId);
+  
+        res.status(200).json({ message: 'Swap request status updated to accepted', batteryStatus: 'reserved' });
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+
+  router.put('/reject-swap-request-socket/:swapRequestId', async (req, res) => {
+    try {
+        const { swapRequestId } = req.params;
+  
+        // Find the swap request by ID
+        const swapRequest = await SwapRequest.findById(swapRequestId);
+  
+        if (!swapRequest) {
+            return res.status(404).json({ error: 'Swap request not found' });
+        }
+
+        // Get the franchiser ID from the swap request
+        const franchiserId = swapRequest.franchiser;
+  
+        // Update the swap request status to "accepted"
+        swapRequest.request = 'rejected';
+        await swapRequest.save();
+
+         // Emit event to notify the biker
+         const io = req.app.get('io');
+         io.emit('swapRequestRejected', franchiserId);
+  
+        res.status(200).json({ message: 'Swap request status updated to rejected' });
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+  
+  
 module.exports = router

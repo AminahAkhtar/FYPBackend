@@ -13,6 +13,14 @@ const FranchiserSchema = new Schema({
         type:String,
         unique:true
     },
+    otp:{
+        type:Number,
+        unique:true
+    },
+    otpExpiresAt: {
+        type: Date,
+        default: () => Date.now() + 24*60*60*1000 // 24 hours from creation
+    },
     totalBatteries:{
         type:Number,
         default: 9
@@ -41,6 +49,10 @@ const FranchiserSchema = new Schema({
 
 // Define a 2dsphere index on the location field
 FranchiserSchema.index({ location: '2dsphere' });
+
+// Define a TTL index on the otpExpiresAt field
+FranchiserSchema.index({ otpExpiresAt: 1 }, { expireAfterSeconds: 0 });
+
 
 const Franchiser = mongoose.model('franchiser', FranchiserSchema );
 module.exports =  Franchiser;

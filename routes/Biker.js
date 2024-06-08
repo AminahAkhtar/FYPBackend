@@ -388,6 +388,44 @@ router.post('/generate-otp', async (req, res) => {
 // });
 
 
+//otp 
+// Route to handle phone number and OTP
+router.post('/otpregister', async (req, res) => {
+    const { phoneNumber, otp } = req.body;
+
+    try {
+        // Create a new biker document
+        let biker = new Biker({ phoneNumber, otp});
+        
+        // Save to the database
+        await biker.save();
+
+        res.status(201).json({ message: 'Biker registered successfully' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'An error occurred' });
+    }
+});
+
+// Route to check if there is an OTP against a phone number
+router.get('/check/:phoneNumber', async (req, res) => {
+    const { phoneNumber } = req.params;
+
+    try {
+        const biker = await Biker.findOne({ phoneNumber });
+
+        if (biker && biker.otp) {
+            res.status(200).json({ message: 'Registered user', biker });
+        } else {
+            res.status(200).json({ message: 'Not registered user' });
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'An error occurred' });
+    }
+});
+
+
 // Route to get nearest franchisers based on biker's phone number
 
 
@@ -778,7 +816,7 @@ router.get('/bikerlocation/map/:phoneNumber', async (req, res) => {
    
 });
   
-module.exports = router
+
 
 
 // const express = require('express');
@@ -906,3 +944,61 @@ router.post('/store-location', async (req, res) => {
       return res.status(500).json({ error: 'Internal server error' });
     }
   });
+
+  // Endpoint for bikers to send swap requests to swap stations
+router.post('/requestSwapSocket', async (req, res) => {
+    const { bikerPhoneNumber, franchiserPhoneNumber, batteryId } = req.body;
+
+    try {
+        // Fetch the biker ID based on the phone number
+        const biker = await Biker.findOne({ phoneNumber: bikerPhoneNumber });
+        if (!biker) {
+            return res.status(404).json({ message: 'Biker not found' });
+        }
+
+        // Fetch the franchiser ID based on the phone number
+        const franchiser = await Franchiser.findOne({ phoneNumber: franchiserPhoneNumber });
+        if (!franchiser) {
+            return res.status(404).json({ message: 'Franchiser not found' });
+        }
+
+        // Create a new swap request and save it to the database
+        const now = new Date();
+        const swapRequest = new SwapRequest({
+            biker: biker._id,
+            franchiser: franchiser._id,
+            battery: batteryId,
+            batteryStatus: '',
+            request: '',
+            amount: '',
+            datetime: now,
+        });
+        await swapRequest.save();
+        // Emit swap request event to all connected clients
+        const io = req.app.get('io');
+        // Send real-time notification to franchiser
+        io.emit('newSwapRequest', { franchiserId: franchiser._id, bikerPhoneNumber, batteryId });
+
+        // Return the swap request ID as part of the response
+        res.status(200).json({ message: 'A new swap request is generated', swapRequestId: swapRequest._id });
+
+    } catch (error) {
+        console.error('Error processing swap request:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+module.exports = router

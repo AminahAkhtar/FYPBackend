@@ -15,8 +15,9 @@ const BatterySchema = new Schema({
     SOC:{
         type:Number
     },
-    batterylevel:{
-        type:Number
+    status: {
+        type: String,
+        enum: ['charged', 'uncharged']
     },
     mac_address:{
         type: String
