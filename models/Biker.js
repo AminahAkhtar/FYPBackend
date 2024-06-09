@@ -12,6 +12,9 @@ const BikerSchema = new Schema({
         type: String,
         unique: true
     },
+    profileImage: {
+         type: String
+    }, // Add this line
     otp: {
         type: Number
     },

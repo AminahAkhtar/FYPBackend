@@ -76,6 +76,7 @@ app.set('io', io);
 
 // Serve Swagger UI at /api-docs endpoint
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Available routes
 app.use('/api/biker', require('./routes/Biker'));

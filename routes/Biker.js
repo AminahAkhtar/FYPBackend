@@ -8,7 +8,8 @@ const {body, validationResult} = require('express-validator')
 const jwt = require('jsonwebtoken'); 
 const nodemailer = require('nodemailer');
 const axios = require('axios');
-
+const multer = require('multer');
+const path = require('path');
 // const twilio = require('twilio');
 
 
@@ -143,6 +144,32 @@ router.post('/bikerregister', async (req, res) => {
 });
 
 // GET request to fetch user profile details
+// router.get('/profile/:phoneNumber', async (req, res) => {
+//     try {
+//         const { phoneNumber } = req.params;
+
+//         // Find the biker record by phone number
+//         const biker = await Biker.findOne({ phoneNumber });
+
+//         if (!biker) {
+//             return res.status(404).json({ error: 'Biker not found' });
+//         }
+
+//         // Return only the necessary profile details
+//         const userProfile = {
+//             phoneNumber: biker.phoneNumber,
+//             name: biker.name || '', // Return empty string if name is null
+//             email: biker.email || '' , // Return empty string if email is null
+//             profileImage: biker.profileImage || ''
+//         };
+
+//         return res.status(200).json(userProfile);
+//     } catch (error) {
+//         console.error('Error fetching user profile:', error);
+//         return res.status(500).json({ error: 'Internal server error' });
+//     }
+// });
+
 router.get('/profile/:phoneNumber', async (req, res) => {
     try {
         const { phoneNumber } = req.params;
@@ -154,11 +181,23 @@ router.get('/profile/:phoneNumber', async (req, res) => {
             return res.status(404).json({ error: 'Biker not found' });
         }
 
-        // Return only the necessary profile details
+        let base64Image = '';
+        // Check if profile image exists
+        if (biker.profileImage) {
+            // Read the image file from the uploads folder
+            const imagePath = path.join(__dirname, './uploads', biker.profileImage);
+            const image = fs.readFileSync(imagePath);
+
+            // Convert image data to Base64
+            base64Image = Buffer.from(image).toString('base64');
+        }
+
+        // Return profile details along with Base64-encoded image data
         const userProfile = {
             phoneNumber: biker.phoneNumber,
-            name: biker.name || '', // Return empty string if name is null
-            email: biker.email || '' // Return empty string if email is null
+            name: biker.name || '',
+            email: biker.email || '',
+            profileImage: base64Image // Include Base64-encoded image data or empty string if not found
         };
 
         return res.status(200).json(userProfile);
@@ -167,12 +206,49 @@ router.get('/profile/:phoneNumber', async (req, res) => {
         return res.status(500).json({ error: 'Internal server error' });
     }
 });
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'routes/uploads'); // Folder to save uploaded files
+    },
+    filename: (req, file, cb) => {
+        cb(null, Date.now() + path.extname(file.originalname)); // Unique file name
+    }
+});
+const upload = multer({ storage: storage });
+// // POST request to update user profile details (name, email)
+// router.post('/profile/:phoneNumber', async (req, res) => {
+//     try {
+//         const { phoneNumber } = req.params;
+//         const { name, email } = req.body;
 
-// POST request to update user profile details (name, email)
-router.post('/profile/:phoneNumber', async (req, res) => {
+//         // Find the biker record by phone number
+//         let biker = await Biker.findOne({ phoneNumber });
+
+//         if (!biker) {
+//             return res.status(404).json({ error: 'Biker not found' });
+//         }
+
+//         // Update the name and email fields
+//         biker.name = name;
+//         biker.email = email;
+
+//         // Save the updated biker record
+//         await biker.save();
+
+//         return res.status(200).json({ message: 'User profile updated successfully' });
+//     } catch (error) {
+//         console.error('Error updating user profile:', error);
+//         return res.status(500).json({ error: 'Internal server error' });
+//     }
+// });
+
+// POST request to update user profile details (name, email, image)
+router.post('/profile/:phoneNumber', upload.single('profileImage'), async (req, res) => {
     try {
         const { phoneNumber } = req.params;
         const { name, email } = req.body;
+        const profileImage = req.file ? req.file.filename : null;
 
         // Find the biker record by phone number
         let biker = await Biker.findOne({ phoneNumber });
@@ -181,10 +257,13 @@ router.post('/profile/:phoneNumber', async (req, res) => {
             return res.status(404).json({ error: 'Biker not found' });
         }
 
-        // Update the name and email fields
+        // Update the name, email, and image fields
         biker.name = name;
         biker.email = email;
-
+        if (profileImage) {
+            biker.profileImage = profileImage;
+        }
+        console.log(name,email,profileImage)
         // Save the updated biker record
         await biker.save();
 
@@ -194,7 +273,6 @@ router.post('/profile/:phoneNumber', async (req, res) => {
         return res.status(500).json({ error: 'Internal server error' });
     }
 });
-
 
 // Function to generate a 4-digit OTP containing only numbers
 function generateOTP() {
@@ -919,14 +997,14 @@ router.get('/battery-info/:macAddress', async (req, res) => {
 
 // Endpoint to store latitude and longitude values of a biker based on email
 router.post('/store-location', async (req, res) => {
-    const { email, latitude, longitude } = req.body;
+    const { phoneNumber, latitude, longitude } = req.body;
   
     try {
       // Find the biker based on the provided email
-      const biker = await Biker.findOne({ email });
+      const biker = await Biker.findOne({ phoneNumber });
   
       if (!biker) {
-        return res.status(404).json({ error: 'Biker with provided email not found' });
+        return res.status(404).json({ error: 'Biker with provided phoneNumber not found' });
       }
   
       // Update the location coordinates of the biker
